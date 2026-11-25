@@ -1,0 +1,19 @@
+/* =========================================================
+   perf.css — optimasi performa halaman Stok & Kredit
+   CSS-only, zero risk, no JS changes
+   ========================================================= */
+
+/* Browser render card hanya jika mendekati viewport.
+   Card di bawah lipatan = skip parse, layout, paint. */
+.stok-item,
+.kredit-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+
+/* Card yang sedang dibuka (expand tenor/DP) HARUS dirender penuh
+   supaya animasi expand tidak glitch */
+.kredit-card.open {
+  content-visibility: visible;
+  contain-intrinsic-size: none;
+}
