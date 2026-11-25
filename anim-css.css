@@ -1,0 +1,58 @@
+/* =========================================================
+   anim-css.css — animasi stagger hero (CSS-only, 100% aman)
+   Tidak pakai JS. Kalau browser tidak support → elemen visible natural.
+   ========================================================= */
+
+@media (prefers-reduced-motion: no-preference) {
+
+  /* Nonaktifkan fade default `.anim-in` pada hero
+     (karena kita ganti dengan stagger per-elemen) */
+  .screen.is-active .hero.anim-in {
+    animation: none !important;
+  }
+
+  @keyframes heroPop {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes heroSlideRight {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes heroSlideLeft {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes heroFadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* === Stagger hero (berurutan) === */
+  .screen.is-active .hero.anim-in .profile-avatar {
+    animation: heroPop 0.5s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .screen.is-active .hero.anim-in .profile-info {
+    animation: heroSlideRight 0.4s cubic-bezier(.4,0,.2,1) 0.1s both;
+  }
+  .screen.is-active .hero.anim-in .badge {
+    animation: heroSlideLeft 0.4s cubic-bezier(.4,0,.2,1) 0.1s both;
+  }
+  .screen.is-active .hero.anim-in h1 {
+    animation: heroFadeUp 0.5s cubic-bezier(.4,0,.2,1) 0.2s both;
+  }
+  .screen.is-active .hero.anim-in p {
+    animation: heroFadeUp 0.5s cubic-bezier(.4,0,.2,1) 0.3s both;
+  }
+  .screen.is-active .hero.anim-in .hero-cta {
+    animation: heroFadeUp 0.5s cubic-bezier(.4,0,.2,1) 0.4s both;
+  }
+
+  /* === Gambar hero di detail model (zoom-in halus) === */
+  .screen.is-active .model-hero.anim-in {
+    animation: heroFadeUp 0.6s cubic-bezier(.4,0,.2,1) 0.05s both;
+  }
+}
