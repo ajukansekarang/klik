@@ -1,29 +1,24 @@
 /* =========================================================
-   filter-models.js
-   Hide model tanpa edit data.js — bisa dikembalikan kapan saja
-   
-   CARA PAKAI:
-   - Tambah nama model ke array HIDDEN → model disembunyikan
-   - Hapus nama dari array HIDDEN → model muncul lagi
-   - Nama harus PERSIS sama dengan key di data.js (case-sensitive)
+   filter-models.js — versi fuzzy match (lebih tahan typo)
+   Hide model berdasarkan KEYWORD, bukan exact name
    ========================================================= */
 (function () {
   'use strict';
 
   /* ============================================
-     DAFTAR MODEL YANG DI-HIDE
-     Tinggal edit array ini untuk hide/show
+     HIDE BY KEYWORD (case-insensitive, contains)
+     Model di-hide kalau namanya MENGANDUNG keyword ini
      ============================================ */
-  var HIDDEN = [
-    'All New Vario 160 CBS',
-    'All New Vario 160 CBS ISS SP',
-    'All New Vario 160 ABS'
+  var HIDE_KEYWORDS = [
+    'All New Vario 160'   // ← hide semua yang ada ini KECUALI yang ada di EXCLUDE
+  ];
 
-    /* Contoh tambah model lain — hapus komentar untuk aktifkan:
-    'New BeAT CBS ISS DELUXE SMARTKEY',
-    'CBR 150 R STD - MH - RD',
-    'CRF 250 L'
-    */
+  /* ============================================
+     PENGECUALIAN (model dengan keyword di atas
+     TAPI tetap mau ditampilkan — misal yang baru)
+     ============================================ */
+  var EXCLUDE_KEYWORDS = [
+    'EVO'                  // ← "Vario EVO 160" tetap tampil meski mengandung "Vario 160"
   ];
 
   /* ============================================
@@ -37,7 +32,7 @@
   } catch (e) {}
 
   if (!data) {
-    console.warn(
+    console.error(
       '[filter-models] ❌ DATA_MOTOR tidak ditemukan.\n' +
       'Pastikan file ini di-load SETELAH data.js dan SEBELUM script utama app.'
     );
@@ -45,28 +40,42 @@
   }
 
   var total = Object.keys(data).length;
-  var removed = 0;
-  var notFound = [];
+  var hidden = [];
 
-  for (var i = 0; i < HIDDEN.length; i++) {
-    var name = HIDDEN[i];
-    if (data[name]) {
-      delete data[name];
-      removed++;
-    } else {
-      notFound.push(name);
-    }
-  }
+  Object.keys(data).forEach(function (name) {
+    var lower = name.toLowerCase();
 
+    /* Cek apakah ada keyword yang cocok */
+    var matchesHide = HIDE_KEYWORDS.some(function (kw) {
+      return lower.indexOf(kw.toLowerCase()) !== -1;
+    });
+    if (!matchesHide) return;
+
+    /* Cek apakah masuk pengecualian */
+    var matchesExclude = EXCLUDE_KEYWORDS.some(function (kw) {
+      return lower.indexOf(kw.toLowerCase()) !== -1;
+    });
+    if (matchesExclude) return;
+
+    /* Hapus */
+    delete data[name];
+    hidden.push(name);
+  });
+
+  /* Log hasil */
   console.log(
-    '[filter-models] ✓ ' + removed + '/' + HIDDEN.length + ' model di-hide. ' +
-    'Sisa ' + Object.keys(data).length + ' model dari ' + total + '.'
+    '%c[filter-models] ✓ ' + hidden.length + ' model di-hide',
+    'color:#25d366;font-weight:bold;'
   );
-
-  if (notFound.length) {
+  if (hidden.length) {
+    hidden.forEach(function (n) { console.log('   ✂️', n); });
+  } else {
     console.warn(
-      '[filter-models] ⚠️ Nama berikut tidak ditemukan di data.js (cek ejaan):\n' +
-      notFound.join('\n')
+      '%c[filter-models] ⚠️ TIDAK ADA yang ke-hide!\n' +
+      'Keyword tidak match. Cek daftar model yang ada:',
+      'color:#ff9f0a;font-weight:bold;'
     );
+    Object.keys(data).forEach(function (n) { console.log('   -', n); });
   }
+  console.log('[filter-models] Sisa ' + Object.keys(data).length + ' dari ' + total + ' model');
 })();
