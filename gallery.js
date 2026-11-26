@@ -1,7 +1,11 @@
 /* =========================================================
    gallery.js — swipe foto model (full 1:1 square)
-   Foto: img/nama.jpg, img/nama-2.jpg, img/nama-3.jpg, ... maks 6
-   Kalau cuma 1 foto → gallery tidak aktif (tampil normal)
+   
+   ATURAN BARU:
+   - Foto utama (nama.jpg)         → HANYA di home card
+   - Detail gallery                 → mulai dari nama-2.jpg, -3.jpg, dst
+   - Kalau TIDAK ada foto -2 dst    → pakai foto utama (default)
+   - Kalau cuma 1 foto tambahan     → tampilkan foto itu saja, no gallery
    ========================================================= */
 (function () {
   'use strict';
@@ -24,10 +28,9 @@
     });
   }
 
+  /* Cari foto MULAI dari -2 (foto utama di-skip) */
   async function findPhotos(slug) {
     var photos = [];
-    if (await tryLoad(IMG_BASE + slug + IMG_EXT)) photos.push(slug + IMG_EXT);
-    else return photos;
     for (var i = 2; i <= MAX_PHOTOS; i++) {
       var f = slug + '-' + i + IMG_EXT;
       if (await tryLoad(IMG_BASE + f)) photos.push(f);
@@ -41,7 +44,7 @@
     var s = document.createElement('style');
     s.id = STYLE_ID;
     s.textContent = [
-      /* === 1:1 SQUARE HERO === */
+      /* === 1:1 SQUARE HERO (berlaku untuk semua detail model) === */
       '.model-hero{aspect-ratio:1 / 1 !important;height:auto !important;background:linear-gradient(135deg,#fafafa,#f0f0f2) !important}',
       '.model-hero img{object-fit:contain !important;padding:24px !important}',
       '.model-hero.gallery-active{overflow:hidden;cursor:grab}',
@@ -76,7 +79,7 @@
       slide.className = 'gallery-slide';
       var img = document.createElement('img');
       img.src = IMG_BASE + file;
-      img.alt = modelName + ' foto ' + (idx + 1);
+      img.alt = modelName + ' foto ' + (idx + 2); // mulai dari 2 karena foto 1 di home
       img.loading = idx === 0 ? 'eager' : 'lazy';
       slide.appendChild(img);
       track.appendChild(slide);
@@ -114,7 +117,16 @@
       for (var i = 0; i < dotEls.length; i++) dotEls[i].classList.toggle('is-active', i === idx);
     }, { passive: true });
 
-    console.log('%c[gallery] ✓ ' + photos.length + ' foto → ' + modelName, 'color:#25d366;font-weight:bold;');
+    console.log('%c[gallery] ✓ ' + photos.length + ' foto (mulai -2) → ' + modelName, 'color:#25d366;font-weight:bold;');
+  }
+
+  /* Kalau cuma 1 foto tambahan → replace src tanpa gallery */
+  function replaceSingle(heroEl, photo, modelName) {
+    var mainImg = heroEl.querySelector('img');
+    if (!mainImg) return;
+    mainImg.src = IMG_BASE + photo;
+    mainImg.alt = modelName + ' foto 2';
+    console.log('%c[gallery] ✓ 1 foto (-2) → ' + modelName, 'color:#25d366;font-weight:bold;');
   }
 
   function initGallery(heroEl) {
@@ -131,7 +143,17 @@
     if (!slug) return;
 
     findPhotos(slug).then(function (photos) {
-      if (photos.length <= 1) return;
+      if (photos.length === 0) {
+        /* Tidak ada foto tambahan (-2 dst) → pakai foto utama (default HTML) */
+        console.log('%c[gallery] ℹ️ ' + modelName + ' → foto utama (tidak ada foto tambahan)', 'color:#86868b');
+        return;
+      }
+      if (photos.length === 1) {
+        /* Cuma 1 foto tambahan → replace src tanpa gallery */
+        replaceSingle(heroEl, photos[0], modelName);
+        return;
+      }
+      /* 2+ foto tambahan → aktifkan gallery */
       buildGallery(heroEl, photos, modelName);
     }).catch(function (e) {
       console.warn('[gallery] error:', e);
