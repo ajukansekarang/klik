@@ -1,5 +1,5 @@
 /* =========================================================
-   gallery.js — swipe foto model (multi-warna)
+   gallery.js — swipe foto model (full 1:1 square)
    Foto: img/nama.jpg, img/nama-2.jpg, img/nama-3.jpg, ... maks 6
    Kalau cuma 1 foto → gallery tidak aktif (tampil normal)
    ========================================================= */
@@ -41,13 +41,20 @@
     var s = document.createElement('style');
     s.id = STYLE_ID;
     s.textContent = [
+      /* === 1:1 SQUARE HERO === */
+      '.model-hero{aspect-ratio:1 / 1 !important;height:auto !important;background:linear-gradient(135deg,#fafafa,#f0f0f2) !important}',
+      '.model-hero img{object-fit:contain !important;padding:24px !important}',
       '.model-hero.gallery-active{overflow:hidden;cursor:grab}',
       '.model-hero.gallery-active:active{cursor:grabbing}',
+
+      /* === GALLERY TRACK === */
       '.gallery-track{display:flex;height:100%;width:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-behavior:smooth;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}',
       '.gallery-track::-webkit-scrollbar{display:none}',
       '.gallery-slide{position:relative;flex:0 0 100%;height:100%;scroll-snap-align:start}',
-      '.gallery-slide img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:16px;pointer-events:none}',
-      '.gallery-dots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:6px 10px;background:rgba(0,0,0,0.42);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:999px;z-index:3}',
+      '.gallery-slide img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:24px;pointer-events:none}',
+
+      /* === INDIKATOR === */
+      '.gallery-dots{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:7px 11px;background:rgba(0,0,0,0.42);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:999px;z-index:3}',
       '.gallery-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.5);transition:all .25s ease;cursor:pointer}',
       '.gallery-dot.is-active{background:#fff;width:18px;border-radius:4px}',
       '.gallery-counter{position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.5);color:#fff;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:3;letter-spacing:0.02em;pointer-events:none}'
