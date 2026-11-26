@@ -1,58 +1,116 @@
 /* =========================================================
-   wa-fix.js — Final: anti-blank + anti-error iOS
-   
+   wa-fix.js — Universal WhatsApp Opener
+   Deteksi: iOS / Android / WebView / Browser biasa
    Strategi:
-   - Anchor click + target="_blank" → page asli tidak blank
-   - wa.me (Universal Link) → iOS langsung buka app, tanpa dialog
-   - Fallback multiple → kalau satu gagal, coba cara lain
+   - Browser biasa → wa.me (Universal Link)
+   - iOS WebView   → anchor target="_blank" ke wa.me
+   - Android WebView → intent:// (buka app langsung)
+   - Android browser → wa.me (sudah bekerja)
    ========================================================= */
 (function () {
   'use strict';
 
   var PHONE = (window.CONFIG && window.CONFIG.phone) ? window.CONFIG.phone : '6285155070692';
 
+  /* === DETEKSI PLATFORM === */
+  var ua = navigator.userAgent || '';
+
+  var isIOS = /iPad|iPhone|iPod/.test(ua) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  var isAndroid = /Android/i.test(ua);
+
+  /* Deteksi WebView in-app (TikTok, IG, FB, dll) */
+  var isWebView = /(TikTok|musical_ly|BytedanceWebview|FBAN|FBAV|Instagram|Twitter)/i.test(ua) ||
+                  (isAndroid && /; wv\)/.test(ua));
+
+  function buildWaMe(message) {
+    var encoded = encodeURIComponent(message || '');
+    return 'https://wa.me/' + PHONE + '?text=' + encoded;
+  }
+
+  function buildIntent(message) {
+    var encoded = encodeURIComponent(message || '');
+    /* Format intent:// untuk Android — buka WA app langsung */
+    return 'intent://send?phone=' + PHONE + '&text=' + encoded +
+           '#Intent;scheme=whatsapp;package=com.whatsapp;end';
+  }
+
   function openWhatsApp(message) {
-    var encodedMsg = encodeURIComponent(message || '');
-    var url = 'https://wa.me/' + PHONE + '?text=' + encodedMsg;
+    var waMeUrl = buildWaMe(message);
+    var intentUrl = buildIntent(message);
 
-    /* === CARA 1: Anchor click dengan target="_blank" ===
-       Paling kompatibel di semua environment:
-       - Browser biasa: buka tab baru → redirect ke WA
-       - iOS Safari: Universal Link → app WA langsung buka
-       - WebView TikTok/IG: trigger external browser atau app WA
-       - Kalau gagal → halaman asli TETAP ADA (tidak blank) */
-    var a = document.createElement('a');
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;';
-    document.body.appendChild(a);
-
-    var clickSuccess = false;
-    try {
-      a.click();
-      clickSuccess = true;
-    } catch (e) {
-      console.warn('[wa-fix] anchor click gagal:', e);
-    }
-
-    setTimeout(function () {
-      if (a.parentNode) a.parentNode.removeChild(a);
-    }, 300);
-
-    /* === FALLBACK: kalau anchor click throw error (sangat jarang) === */
-    if (!clickSuccess) {
-      try {
-        window.open(url, '_blank', 'noopener');
-      } catch (e2) {
-        /* Last resort: navigate langsung (bisa blank, tapi minimal attempt) */
-        window.location.href = url;
+    /* ============================================
+       SKENARIO 1: iOS (Safari atau WebView)
+       Anchor target="_blank" = paling aman,
+       tidak trigger error, tidak blank
+       ============================================ */
+    if (isIOS) {
+      var a = document.createElement('a');
+      a.href = waMeUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+      document.body.appendChild(a);
+      try { a.click(); } catch (e) {
+        window.open(waMeUrl, '_blank', 'noopener');
       }
+      setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 300);
+      return;
     }
+
+    /* ============================================
+       SKENARIO 2: Android di WebView (TikTok/IG/FB)
+       intent:// = minta OS buka WA app langsung,
+       tidak lewat browser, tidak minta download
+       ============================================ */
+    if (isAndroid && isWebView) {
+      /* Fallback: kalau intent gagal, buka wa.me di _blank */
+      var fallbackTimer = setTimeout(function () {
+        /* Kalau setelah 800ms masih di sini, kemungkinan intent gagal */
+        if (!document.hidden) {
+          var a2 = document.createElement('a');
+          a2.href = waMeUrl;
+          a2.target = '_blank';
+          a2.rel = 'noopener noreferrer';
+          a2.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+          document.body.appendChild(a2);
+          try { a2.click(); } catch (e) {}
+          setTimeout(function () { if (a2.parentNode) a2.parentNode.removeChild(a2); }, 300);
+        }
+      }, 800);
+
+      document.addEventListener('visibilitychange', function onVis() {
+        if (document.hidden) clearTimeout(fallbackTimer);
+      }, { once: true });
+
+      /* Coba buka via intent */
+      try {
+        window.location.href = intentUrl;
+      } catch (e) {
+        clearTimeout(fallbackTimer);
+        window.location.href = waMeUrl;
+      }
+      return;
+    }
+
+    /* ============================================
+       SKENARIO 3: Android browser biasa / Desktop
+       wa.me sudah bekerja sempurna
+       ============================================ */
+    var a3 = document.createElement('a');
+    a3.href = waMeUrl;
+    a3.target = '_blank';
+    a3.rel = 'noopener noreferrer';
+    a3.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+    document.body.appendChild(a3);
+    try { a3.click(); } catch (e) {
+      window.open(waMeUrl, '_blank', 'noopener');
+    }
+    setTimeout(function () { if (a3.parentNode) a3.parentNode.removeChild(a3); }, 300);
   }
 
   function bindAll() {
-    /* 1. Semua elemen dengan data-msg */
     document.addEventListener('click', function (e) {
       var el = e.target.closest('[data-msg]');
       if (!el) return;
@@ -61,7 +119,6 @@
       openWhatsApp(el.getAttribute('data-msg'));
     }, true);
 
-    /* 2. Float WA button */
     var floatWa = document.getElementById('floatWa');
     if (floatWa) {
       floatWa.addEventListener('click', function (e) {
@@ -74,7 +131,6 @@
       }, true);
     }
 
-    /* 3. Tombol "Bayar Cash" di bottom sheet */
     document.addEventListener('click', function (e) {
       var btn = e.target.closest('[data-sheet-action="cash"]');
       if (!btn) return;
@@ -92,7 +148,8 @@
       document.body.style.overflow = '';
     }, true);
 
-    console.log('%c[wa-fix] ✓ Aktif — anchor click target=_blank (anti-blank)', 'color:#25d366;font-weight:bold;');
+    console.log('%c[wa-fix] ✓ Universal opener aktif', 'color:#25d366;font-weight:bold;');
+    console.log('  iOS:', isIOS, '| Android:', isAndroid, '| WebView:', isWebView);
   }
 
   if (document.readyState === 'loading') {
