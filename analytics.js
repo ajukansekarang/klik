@@ -1,38 +1,37 @@
 /* =========================================================
    analytics.js — GA4 tracking (kunjungan + klik WhatsApp)
-   
-   CARA PAKAI:
-   1. Ganti GA_ID di bawah dengan Measurement ID kamu (G-XXXXXXXXXX)
-   2. Tambahkan <script src="analytics.js"></script> sebelum </body>
-   3. Buka analytics.google.com untuk lihat data
+   GA ID: G-MSFQRYTMQ8
    ========================================================= */
 (function () {
   'use strict';
 
-  /* ============ ISI DI SINI ============ */
-  var GA_ID = 'G-MSFQRYTMQ8';   // ← GANTI dengan ID GA4 kamu
-  /* ==================================== */
+  var GA_ID = 'G-MSFQRYTMQ8';
 
-  if (!GA_ID || GA_ID === 'G-XXXXXXXXXX') {
-    console.warn('[analytics] ⚠️ GA_ID belum diisi. Tracking dimatikan.');
+  if (window.__ga4_loaded) {
+    console.log('%c[analytics] sudah aktif sebelumnya', 'color:#86868b');
     return;
   }
+  window.__ga4_loaded = true;
 
-  /* === LOAD GTAG === */
-  var s = document.createElement('script');
-  s.async = true;
-  s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
-  document.head.appendChild(s);
+  /* === LOAD GTAG SCRIPT === */
+  var script = document.createElement('script');
+  script.async = true;
+  script.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
+  script.onerror = function () {
+    console.error('%c[analytics] ❌ Gagal load gtag.js. Cek koneksi / adblock.', 'color:#ff3b30;font-weight:bold;');
+  };
+  document.head.appendChild(script);
 
+  /* === INIT DATA LAYER === */
   window.dataLayer = window.dataLayer || [];
   window.gtag = function () { dataLayer.push(arguments); };
   gtag('js', new Date());
   gtag('config', GA_ID, {
-    send_page_view: false,  // ← manual pageview (SPA route)
+    send_page_view: false,
     cookie_flags: 'SameSite=None;Secure'
   });
 
-  console.log('%c[analytics] ✓ GA4 aktif — ' + GA_ID, 'color:#25d366;font-weight:bold;');
+  console.log('%c[analytics] ✓ GA4 aktif — ' + GA_ID, 'color:#25d366;font-weight:bold;font-size:13px');
 
   /* === TRACK PAGEVIEW (SPA hash routing) === */
   var lastPath = '';
@@ -41,58 +40,58 @@
     if (path === lastPath) return;
     lastPath = path;
 
-    // Ambil judul dari halaman
-    var title = document.title;
+    var title = 'Home — Sales Honda Bandung';
     if (path.indexOf('/model/') === 0) {
-      try { title = decodeURIComponent(path.slice(7)) + ' — Detail Motor'; } catch (e) { title = 'Detail Motor'; }
+      try { title = decodeURIComponent(path.slice(7)) + ' — Detail Motor'; }
+      catch (e) { title = 'Detail Motor'; }
     } else if (path === '/stok') { title = 'Stok & Harga'; }
     else if (path === '/kredit') { title = 'Simulasi Kredit'; }
-    else { title = 'Home — Sales Honda Bandung'; }
 
     gtag('event', 'page_view', {
       page_path: path,
       page_title: title,
       page_location: location.href
     });
+    console.log('%c[analytics] 📄 pageview → ' + path, 'color:#007aff');
   }
 
-  trackPageview();
+  /* Delay sedikit supaya gtag sudah siap */
+  setTimeout(trackPageview, 100);
   window.addEventListener('hashchange', trackPageview);
 
   /* === TRACK KLIK WHATSAPP === */
-  /* Strategi: intercept window.open karena semua link WA dibuka via openWa() */
+  function extractModel(msg) {
+    var patterns = [
+      /harga cash & stok (.+?)\./i,
+      /tanya stok & harga (.+?)\./i,
+      /kredit (.+?) dengan DP/i,
+      /konsultasi kredit (.+?)\./i,
+      /PROMO (.+?):/i,
+      /harga (.+?)\./i
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+      var m = msg.match(patterns[i]);
+      if (m && m[1]) return m[1].trim();
+    }
+    return '';
+  }
+
+  function classifySource(msg) {
+    if (msg.indexOf('PROMO') !== -1) return 'promo';
+    if (msg.indexOf('kredit') !== -1 || msg.indexOf('Kredit') !== -1) return 'kredit';
+    if (msg.indexOf('cash') !== -1) return 'cash';
+    if (msg.indexOf('tanya-tanya') !== -1) return 'hero_default';
+    return 'other';
+  }
+
   var origOpen = window.open;
   window.open = function (url) {
-    if (url && typeof url === 'string' && (url.indexOf('wa.me') !== -1 || url.indexOf('whatsapp.com') !== -1)) {
-      try {
-        // Extract model dari text parameter
-        var msgMatch = url.match(/text=([^&]+)/);
+    try {
+      if (url && typeof url === 'string' && (url.indexOf('wa.me') !== -1 || url.indexOf('whatsapp.com') !== -1)) {
+        var msgMatch = url.match(/[?&]text=([^&]+)/);
         var msg = msgMatch ? decodeURIComponent(msgMatch[1]) : '';
-        var model = '';
-        
-        // Coba match nama model dari pesan
-        // Contoh pesan: "Halo Dion, saya dari TikTok. Mau tanya harga cash & stok New BeAT CBS."
-        //              "Mau kredit PCX 160 CBS dengan DP Rp 3.000.000"
-        //              "Mau ambil PROMO New BeAT CBS: DP ..."
-        var patterns = [
-          /harga cash & stok (.+?)\./i,
-          /harga (.+?)\./i,
-          /kredit (.+?) dengan DP/i,
-          /konsultasi kredit (.+?)\./i,
-          /PROMO (.+?):/i,
-          /tanya stok & harga (.+?)\./i
-        ];
-        for (var i = 0; i < patterns.length; i++) {
-          var m = msg.match(patterns[i]);
-          if (m && m[1]) { model = m[1].trim(); break; }
-        }
-
-        // Klasifikasi source
-        var source = 'unknown';
-        if (msg.indexOf('cash') !== -1) source = 'cash';
-        else if (msg.indexOf('kredit') !== -1 || msg.indexOf('Kredit') !== -1) source = 'kredit';
-        else if (msg.indexOf('PROMO') !== -1) source = 'promo';
-        else if (msg.indexOf('tanya-tanya') !== -1) source = 'hero_default';
+        var model = extractModel(msg);
+        var source = classifySource(msg);
 
         gtag('event', 'wa_click', {
           model: model || '(tidak terdeteksi)',
@@ -101,45 +100,18 @@
           message_preview: msg.substring(0, 120)
         });
 
-        console.log('%c[analytics] 📱 WA click → ' + source + ' | ' + (model || 'generic'), 'color:#25d366');
-      } catch (e) {
-        console.warn('[analytics] error tracking WA:', e);
+        console.log('%c[analytics] 📱 WA click → ' + source + ' | ' + (model || 'generic'), 'color:#25d366;font-weight:bold;');
       }
+    } catch (e) {
+      console.warn('[analytics] error tracking WA:', e);
     }
     return origOpen.apply(this, arguments);
   };
 
-  /* === TRACK KLIK TOMBOL WA YANG PAKAI location.href FALLBACK === */
-  /* Kalau popup diblokir, openWa() fallback ke location.href = url */
-  /* Kita track via click listener sebagai backup */
-  document.addEventListener('click', function (e) {
-    var el = e.target.closest('[data-msg], .wa-btn, .float-wa, [data-sheet-action="cash"]');
-    if (!el) return;
-    // Cuma track kalau bukan dari openWa() (window.open sudah track duluan)
-    // Delay kecil supaya window.open selesai dulu
-    setTimeout(function () {
-      if (window.__waClicked) {
-        window.__waClicked = false;
-        return;
-      }
-      // Fallback path (popup blocked)
-      gtag('event', 'wa_click_fallback', {
-        page: location.hash || '#/'
-      });
-    }, 100);
+  /* === TRACK ERROR GA4 kalau gagal load === */
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target.src && e.target.src.indexOf('googletagmanager') !== -1) {
+      console.error('%c[analytics] ❌ GTM/GA4 script diblokir (adblock?). Tracking tidak jalan.', 'color:#ff3b30;font-weight:bold;');
+    }
   }, true);
-
-  /* Set flag ketika window.open dipanggil */
-  var origOpen2 = window.open;
-  window.open = function () {
-    window.__waClicked = true;
-    return origOpen2.apply(this, arguments);
-  };
-
-  /* === TRACK PAGE EXIT (opsional, bagus untuk analisis) === */
-  window.addEventListener('beforeunload', function () {
-    gtag('event', 'page_exit', {
-      page: location.hash || '#/'
-    });
-  });
 })();
