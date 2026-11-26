@@ -10,7 +10,7 @@
   'use strict';
 
   /* ============ ISI DI SINI ============ */
-  var GA_ID = 'G-XXXXXXXXXX';   // ← GANTI dengan ID GA4 kamu
+  var GA_ID = 'G-MSFQRYTMQ8';   // ← GANTI dengan ID GA4 kamu
   /* ==================================== */
 
   if (!GA_ID || GA_ID === 'G-XXXXXXXXXX') {
